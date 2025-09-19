@@ -1,0 +1,97 @@
+  app.c (app.h)
+   Endless loops, which execute tasks with fixed computing time. This 
+   sequential execution is only deviated from when an interrupt event occurs.
+   Cyclic Executive (Update by Time Code, period = 1mS)
+
+...
+
+
+1. main.c (Estructura y funciones principales)
+
+El archivo `main.c` contiene el punto de entrada principal del firmware.
+Funciones relevantes:
+ - main():
+   * Inicializa periféricos (HAL_Init, SystemClock_Config, GPIO, UART).
+   * Llama a app_init() para inicializar la aplicación.
+   * En el bucle infinito while(1), llama periódicamente a app_update().
+
+ - SystemClock_Config():
+   * Configura el reloj del sistema utilizando el HSI (High Speed Internal oscillator)
+     y el PLL, logrando SystemCoreClock en 64 MHz.
+
+ - MX_GPIO_Init(), MX_USART2_UART_Init():
+   * Configuran periféricos básicos (GPIO y UART2).
+
+
+2. app.c (Gestión de tareas y ejecución cíclica)
+
+Definiciones principales:
+ - Estructuras de datos:
+   * task_cfg_t: contiene punteros a funciones init() y update() de cada tarea.
+   * task_dta_t: contiene el campo WCET (Worst-Case Execution Time).
+
+ - Arrays de estructuras:
+   * task_cfg_list[]: lista de configuración con funciones de inicialización y actualización
+     de tareas: sensor, system, actuator.
+   * task_dta_list[]: lista de datos que guarda WCET de cada tarea.
+
+Variables globales importantes:
+ - g_app_cnt: contador de ejecuciones de la aplicación.
+ - g_app_runtime_us: tiempo de ejecución total de todas las tareas en microsegundos.
+ - g_app_tick_cnt: contador global de ticks (incrementado en HAL_SYSTICK_Callback()).
+
+Funciones principales:
+ - app_init():
+   * Inicializa variables globales (contadores y WCET de cada tarea).
+   * Llama a task_xxx_init() de cada tarea.
+   * Configura el contador de ciclos (DWT).
+   * Reinicia los contadores de ticks de aplicación y de tareas.
+
+ - app_update():
+   * Se ejecuta periódicamente (condicionado al tick de 1 ms).
+   * Recorre todas las tareas:
+     - Llama a su método update().
+     - Mide tiempo de ejecución en µs (con DWT).
+     - Actualiza g_app_runtime_us.
+     - Actualiza WCET de cada tarea.
+   * Implementa protección de variables compartidas con deshabilitación de interrupciones.
+
+ - HAL_SYSTICK_Callback():
+   * Incrementa g_app_tick_cnt y contadores de cada tarea.
+   * Garantiza temporización de 1 ms para app_update().
+
+
+3. Evolución de variables clave
+
+a) SysTick y SystemCoreClock:
+ - Al resetear el microcontrolador, SystemCoreClock se inicializa en 64 MHz mediante PLL.
+ - HAL_Init() configura SysTick para generar interrupciones cada 1 ms.
+ - Cada interrupción incrementa g_app_tick_cnt (usada por app_update()).
+
+b) g_app_runtime_us (Application Runtime en microsegundos):
+ - Inicializada en 0 en app_init().
+ - En cada ciclo de app_update(), se reinicia en 0.
+ - Se acumula el tiempo de ejecución de todas las tareas en un ciclo.
+ - Refleja la carga total de la aplicación en tiempo real.
+
+c) WCET (Worst-Case Execution Time, en µs):
+ - Inicializado en 0 en app_init().
+ - Para cada tarea, se mide el tiempo de ejecución en app_update().
+ - Si la ejecución actual excede el WCET previo, se actualiza.
+ - Permite monitorear el peor tiempo de ejecución registrado de cada tarea.
+
+
+4. Impacto del LOGGER_INFO()
+
+LOGGER_INFO() imprime mensajes por UART (o semihosting según configuración).
+
+Impacto en g_app_runtime_us:
+ - Cada vez que LOGGER_INFO() se ejecuta, consume tiempo adicional en microsegundos.
+ - Ese tiempo se suma en g_app_runtime_us dentro del ciclo actual, aumentando la medida de
+   runtime total.
+
+Impacto en WCET de cada tarea:
+ - Si LOGGER_INFO() está dentro de una tarea, su tiempo de transmisión por UART incrementa
+   el tiempo medido con DWT.
+ - Esto puede aumentar artificialmente el WCET, ya que la operación de logging no forma parte
+   del procesamiento funcional de la tarea, sino de depuración.
