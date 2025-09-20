@@ -186,35 +186,80 @@ void task_sensor_statechart(void)
 				if (EV_BTN_XX_DOWN == p_task_sensor_dta->event)
 				{
 					put_event_task_system(p_task_sensor_cfg->signal_down);
-					p_task_sensor_dta->state = ST_BTN_XX_DOWN;
+					p_task_sensor_dta->state = ST_BTN_XX_FALLING;
 				}
 
 				break;
 
 			case ST_BTN_XX_FALLING:
-
+				LOGGER_INFO("Button FALLING event - state = %d", p_task_sensor_dta->state);
+				if (EV_BTN_XX_UP == p_task_sensor_dta->event)
+				{
+					if (0 == p_task_sensor_dta->tick)
+					{
+						p_task_sensor_dta->state = ST_BTN_XX_UP;
+					}
+					else
+					{
+						p_task_sensor_dta->tick--;
+					}
+				}
+				else if (EV_BTN_XX_DOWN == p_task_sensor_dta->event)
+				{
+					if (0 == p_task_sensor_dta->tick)
+					{
+						put_event_task_system(p_task_sensor_cfg->signal_down);
+						p_task_sensor_dta->state = ST_BTN_XX_DOWN;
+					}
+					else
+					{
+						p_task_sensor_dta->tick--;
+					}
+				}
 				break;
 
 			case ST_BTN_XX_DOWN:
-
+				LOGGER_INFO("Button DOWN event - state = %d", p_task_sensor_dta->state);
 				if (EV_BTN_XX_UP == p_task_sensor_dta->event)
 				{
 					put_event_task_system(p_task_sensor_cfg->signal_up);
-					p_task_sensor_dta->state = ST_BTN_XX_UP;
+					p_task_sensor_dta->state = ST_BTN_XX_RISING;
 				}
 
 				break;
 
 			case ST_BTN_XX_RISING:
+				LOGGER_INFO("Button RISING event - state = %d", p_task_sensor_dta->state);
+				if (EV_BTN_XX_UP == p_task_sensor_dta->event)
+				{
+					if (0 == p_task_sensor_dta->tick)
+					{
+						put_event_task_system(p_task_sensor_cfg->signal_up);
+						p_task_sensor_dta->state = ST_BTN_XX_UP;
+					}
+					else
+					{
+						p_task_sensor_dta->tick--;
+					}
+				}
+				else if (EV_BTN_XX_DOWN == p_task_sensor_dta->event)
+				{
 
+					if (0 == p_task_sensor_dta->tick)
+					{
+						p_task_sensor_dta->state = ST_BTN_XX_DOWN;
+					}
+					else
+					{
+						p_task_sensor_dta->tick--;
+					}
+				}
 				break;
 
 			default:
-
 				p_task_sensor_dta->tick  = DEL_BTN_XX_MIN;
 				p_task_sensor_dta->state = ST_BTN_XX_UP;
 				p_task_sensor_dta->event = EV_BTN_XX_UP;
-
 				break;
 		}
 	}
