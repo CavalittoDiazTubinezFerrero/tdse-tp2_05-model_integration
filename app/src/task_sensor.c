@@ -198,7 +198,6 @@ void task_sensor_statechart(void)
 				break;
 
 			case ST_BTN_XX_FALLING:
-				LOGGER_INFO("Button FALLING event - state = %d", p_task_sensor_dta->state);
 				if (EV_BTN_XX_UP == p_task_sensor_dta->event)
 				{
 					if (0 == p_task_sensor_dta->tick)
@@ -225,7 +224,6 @@ void task_sensor_statechart(void)
 				break;
 
 			case ST_BTN_XX_DOWN:
-				LOGGER_INFO("Button DOWN event - state = %d", p_task_sensor_dta->state);
 				if (EV_BTN_XX_UP == p_task_sensor_dta->event)
 				{
 					put_event_task_system(p_task_sensor_cfg->signal_up);
@@ -235,7 +233,6 @@ void task_sensor_statechart(void)
 				break;
 
 			case ST_BTN_XX_RISING:
-				LOGGER_INFO("Button RISING event - state = %d", p_task_sensor_dta->state);
 				if (EV_BTN_XX_UP == p_task_sensor_dta->event)
 				{
 					if (0 == p_task_sensor_dta->tick)
