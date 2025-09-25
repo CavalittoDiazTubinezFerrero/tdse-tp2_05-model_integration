@@ -1,0 +1,62 @@
+1. Tipos de datos y estructuras
+-   Enumeraciones:
+    -   task_sensor_ev_t: define los eventos que excitan el statechart
+        (EV_BTN_XX_UP, EV_BTN_XX_DOWN).
+    -   task_sensor_st_t: define los estados del statechart
+        (ST_BTN_XX_UP, ST_BTN_XX_FALLING, ST_BTN_XX_DOWN,
+        ST_BTN_XX_RISING).
+    -   task_sensor_id_t: identificadores de sensores (ej. ID_BTN_A).
+-   Estructuras:
+    -   task_sensor_cfg_t: configuración estática de cada sensor.
+    -   task_sensor_dta_t: estado dinámico de cada sensor.
+
+2. Arrays de estructuras
+-   task_sensor_cfg_list[]: array constante con la configuración de los
+    sensores. En este caso, solo 1 sensor (botón A).
+-   task_sensor_dta_list[]: array con el estado dinámico de los sensores.
+
+3. Métodos principales
+-   task_sensor_init(void *parameters):
+    -   Inicializa la estructura de datos de cada sensor.
+    -   Configura estado inicial ST_BTN_XX_UP y evento EV_BTN_XX_UP.
+    -   Resetea contadores globales.
+-   task_sensor_update(void *parameters):
+    -   Controla el decremento de g_task_sensor_tick_cnt (tick de la
+        FSM).
+    -   Actualiza el contador de ejecuciones g_task_sensor_cnt.
+    -   Llama a task_sensor_statechart() tantas veces como ticks
+        pendientes haya.
+-   task_sensor_statechart(void):
+    -   Implementa la máquina de estados finita.
+    -   Lee el pin GPIO asociado al sensor y actualiza el evento
+        (EV_BTN_XX_DOWN o EV_BTN_XX_UP).
+    -   Ejecuta un switch sobre el estado actual y evalúa transiciones:
+        -   Ejemplo: de ST_BTN_XX_UP a ST_BTN_XX_DOWN al detectar evento
+            DOWN.
+        -   Ejemplo: de ST_BTN_XX_DOWN a ST_BTN_XX_UP al detectar evento
+            UP.
+    -   En las transiciones, puede enviar señales al System Task con
+        put_event_task_system(...).
+
+
+4. Variables globales de la aplicación
+-   g_app_runtime_us (Application Runtime, en microsegundos):
+    -   Variable global del sistema actualizada en app_update().
+    -   Su valor crece en el tiempo acumulando el uptime de la
+        aplicación.
+    -   Permite medir el tiempo total de ejecución del sistema.
+-   WCET (Worst-Case Execution Time, en microsegundos):
+    -   Campo presente en el array de estructuras de datos de cada
+        tarea.
+    -   Representa el tiempo de ejecución más largo observado para
+        task_sensor.
+    -   Su evolución es no decreciente: solo se actualiza si el tiempo
+        de ejecución actual supera el valor almacenado.
+    -   Permite evaluar predictibilidad y dimensionar deadlines en
+        sistemas de tiempo real.
+
+5. Conclusión
+La implementación de task_sensor sigue un esquema para el manejo de botones/sensores. La separación de configuración (cfg) y datos
+(dta) hace que sea fácilmente escalable a más sensores. El uso de
+métricas globales como g_app_runtime_us y WCET permite instrumentar el
+sistema y monitorear el desempeño temporal.
