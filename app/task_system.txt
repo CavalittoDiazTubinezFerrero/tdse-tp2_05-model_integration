@@ -1,7 +1,82 @@
-  task_system.c (task_system.h, task_system_attribute.h)
-   Non-Blocking & Update By Time Code -> System Modeling
+1. Archivos a analizar
+- task_system.c
+- task_system_attribute.h
+- task_system_interface.h
+- task_system.png
 
-  task_system_interface.c (task_system_interface.h)
-   Non-Blocking Code
+2. Tipos de datos y estructuras
+Definidos en task_system_attribute.h:
 
-...
+- Enumeración de EVENTOS (`task_system_ev_t`):
+  * EV_SYS_IDLE
+  * EV_SYS_LOOP_DET
+  * EV_SYS_NOT_LOOP_DET
+  * EV_SYS_MANUAL_BTN
+  * EV_SYS_NOT_MANUAL_BTN
+  * EV_SYS_IR_PHO_CELL
+  * EV_SYS_NOT_IR_PHO_CELL
+
+- Enumeración de ESTADOS (`task_system_st_t`):
+  * ST_SYS_IDLE
+  * ST_SYS_ACTIVE_01
+  * ST_SYS_ACTIVE_02
+  * ST_SYS_ACTIVE_03
+  * ST_SYS_ACTIVE_04
+  * ST_SYS_ACTIVE_05
+  * ST_SYS_ACTIVE_06
+
+- Estructura de datos (`task_system_dta_t`):
+typedef struct {
+uint32_t tick; // Contador de retardo
+task_system_st_t state; // Estado actual
+task_system_ev_t event; // Último evento recibido
+bool flag; // Indica si hay evento pendiente
+} task_system_dta_t;
+
+3. Variables globales
+- `uint32_t g_task_system_cnt;`
+Contador de ejecuciones de la tarea.
+
+- `volatile uint32_t g_task_system_tick_cnt;`
+Contador de ticks (control de temporización, no bloqueante).
+
+4. Patrones de diseño
+- **Finite State Machine (FSM)**: 
+Estados + eventos determinan la evolución del sistema.
+
+- **Event Queue**:
+Desacopla productores y consumidores de eventos.
+
+- **Non-Blocking Design**:
+Uso de contadores (`tick--`) en lugar de retardos bloqueantes.
+
+- **Separation of Concerns**:
+* `task_system` lógica de alto nivel (FSM).
+* `task_actuator` ejecución de acciones físicas (ej. LEDs).
+Comunicación vía eventos.
+
+
+ANÁLISIS DE LA VARIABLE g_app_runtime_us:
+
+Es una variable global definida en el contexto de la aplicación (app_update()).
+Representa el tiempo total de ejecución acumulado de la aplicación (en microsegundos).
+Se incrementa cada vez que se ejecuta el loop principal o la función de actualización periódica.
+
+Al iniciar la aplicación, g_app_runtime_us = 0.
+Con cada ciclo de actualización (app_update()), se incrementa en un valor fijo asociado al tick rate del sistema.
+Su crecimiento es monótono creciente, sólo se resetea cuando se reinicia el sistema.
+
+ANÁLISIS DEL Campo WCET (Worst-Case Execution Time):
+
+Se encuentra dentro de una estructura de datos (dta) asociada a task_system. Refleja el estado más costoso que se haya ejecutado en la práctica. Es una medida empírica de tiempo máximo observado, no un cálculo analítico.
+Forma parte de un array que registra métricas de ejecución de cada tarea del sistema.
+WCET guarda el mayor tiempo de ejecución medido en la tarea desde que inició la aplicación.
+
+Inicialmente WCET = 0.
+En cada ejecución de la tarea: se mide el tiempo de inicio (t0) y fin (t1) de la ejecución.
+Se calcula la duración: duration = t1 - t0
+Se actualiza:
+if (duration > WCET) {
+    WCET = duration;
+}
+WCET nunca disminuye. Su valor se estabiliza en el tiempo máximo observado de ejecución de la tarea. Sirve como métrica de validación de diseño en sistemas de tiempo real: permite verificar si la tarea cumple los límites temporales de schedulability.

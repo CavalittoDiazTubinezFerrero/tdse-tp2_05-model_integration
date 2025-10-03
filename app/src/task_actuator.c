@@ -56,19 +56,17 @@
 #define DEL_LED_XX_PUL				250ul
 #define DEL_LED_XX_BLI				500ul
 #define DEL_LED_XX_MIN				0ul
+#define DEL_LED_XX_MAX				200ul
 
 /********************** internal data declaration ****************************/
 const task_actuator_cfg_t task_actuator_cfg_list[] = {
 	{ID_LED_A,  LED_A_PORT,  LED_A_PIN, LED_A_ON,  LED_A_OFF,
-	 DEL_LED_XX_BLI, DEL_LED_XX_PUL},
-	{ID_LED_B,  LED_B_PORT,  LED_B_PIN, LED_B_ON,  LED_B_OFF,
-	 	 DEL_LED_XX_BLI, DEL_LED_XX_PUL}
+	 DEL_LED_XX_BLI, DEL_LED_XX_PUL}
 };
 
 #define ACTUATOR_CFG_QTY	(sizeof(task_actuator_cfg_list)/sizeof(task_actuator_cfg_t))
 
 task_actuator_dta_t task_actuator_dta_list[] = {
-	{DEL_LED_XX_MIN, ST_LED_XX_OFF, EV_LED_XX_NOT_BLINK, false},
 	{DEL_LED_XX_MIN, ST_LED_XX_OFF, EV_LED_XX_NOT_BLINK, false}
 };
 
@@ -171,62 +169,136 @@ void task_actuator_update(void *parameters)
 
 void task_actuator_statechart(void)
 {
-	uint32_t index;
-	const task_actuator_cfg_t *p_task_actuator_cfg;
-	task_actuator_dta_t *p_task_actuator_dta;
+    uint32_t index;
+    const task_actuator_cfg_t *p_task_actuator_cfg;
+    task_actuator_dta_t *p_task_actuator_dta;
 
-	for (index = 0; ACTUATOR_DTA_QTY > index; index++)
-	{
-		/* Update Task Actuator Configuration & Data Pointer */
-		p_task_actuator_cfg = &task_actuator_cfg_list[index];
-		p_task_actuator_dta = &task_actuator_dta_list[index];
+    for (index = 0; ACTUATOR_DTA_QTY > index; index++)
+    {
+        /* Update Task Actuator Configuration & Data Pointer */
+        p_task_actuator_cfg = &task_actuator_cfg_list[index];
+        p_task_actuator_dta = &task_actuator_dta_list[index];
 
-		switch (p_task_actuator_dta->state)
-		{
-			case ST_LED_XX_OFF:
+        switch (p_task_actuator_dta->state)
+        {
+            case ST_LED_XX_OFF:
+                if ((true == p_task_actuator_dta->flag) && (EV_LED_XX_ON == p_task_actuator_dta->event))
+                {
+                    p_task_actuator_dta->flag = false;
+                    HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_on);
+                    p_task_actuator_dta->state = ST_LED_XX_ON;
+                }
+                else if ((true == p_task_actuator_dta->flag) && (EV_LED_XX_BLINK == p_task_actuator_dta->event))
+                {
+                    p_task_actuator_dta->flag = false;
+                    p_task_actuator_dta->tick = DEL_LED_XX_BLI;
+                    HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_on);
+                    p_task_actuator_dta->state = ST_LED_XX_BLINK_ON;
+                }
+                else if ((true == p_task_actuator_dta->flag) && (EV_LED_XX_PULSE == p_task_actuator_dta->event))
+                {
+                    p_task_actuator_dta->flag = false;
+                    p_task_actuator_dta->tick = DEL_LED_XX_PUL;
+                    HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_on);
+                    p_task_actuator_dta->state = ST_LED_XX_PULSE;
+                }
+                break;
 
-				if ((true == p_task_actuator_dta->flag) && (EV_LED_XX_ON == p_task_actuator_dta->event))
-				{
-					p_task_actuator_dta->flag = false;
+            case ST_LED_XX_ON:
+                if ((true == p_task_actuator_dta->flag) && (EV_LED_XX_OFF == p_task_actuator_dta->event))
+                {
+                    p_task_actuator_dta->flag = false;
+                    HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_off);
+                    p_task_actuator_dta->state = ST_LED_XX_OFF;
+                }
+                else if ((true == p_task_actuator_dta->flag) && (EV_LED_XX_BLINK == p_task_actuator_dta->event))
+                {
+                	p_task_actuator_dta->flag = false;
+                	p_task_actuator_dta->tick = DEL_LED_XX_BLI;
 					HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_on);
-					p_task_actuator_dta->state = ST_LED_XX_ON;
-				}
+					p_task_actuator_dta->state = ST_LED_XX_BLINK_ON;
+                }
+                break;
 
-				break;
-
-			case ST_LED_XX_ON:
-
-				if ((true == p_task_actuator_dta->flag) && (EV_LED_XX_OFF == p_task_actuator_dta->event))
+            case ST_LED_XX_BLINK_ON:
+            	if (p_task_actuator_dta->tick > DEL_LED_XX_MIN)
 				{
-					p_task_actuator_dta->flag = false;
-					HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_off);
-					p_task_actuator_dta->state = ST_LED_XX_OFF;
+					p_task_actuator_dta->tick--;
 				}
+				else{
 
+					if ((true == p_task_actuator_dta->flag) && (EV_LED_XX_OFF == p_task_actuator_dta->event))
+					{
+						HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_off);
+						p_task_actuator_dta->state = ST_LED_XX_OFF;
+					}
+					else if((true == p_task_actuator_dta->flag) && (EV_LED_XX_ON == p_task_actuator_dta->event))
+					{
+						HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_on);
+						p_task_actuator_dta->state = ST_LED_XX_ON;
+					}
+
+					else
+					{
+						p_task_actuator_dta->tick = DEL_LED_XX_MAX;
+						HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_off);
+						p_task_actuator_dta->state = ST_LED_XX_BLINK_OFF;
+					}
+
+					p_task_actuator_dta->flag = false;
+				}
 				break;
 
-			case ST_LED_XX_BLINK_ON:
+            case ST_LED_XX_BLINK_OFF:
+            	if (p_task_actuator_dta->tick > DEL_LED_XX_MIN)
+            	{
+            		p_task_actuator_dta->tick--;
+            	}
+            	else{
+					if ((true == p_task_actuator_dta->flag) && (EV_LED_XX_OFF == p_task_actuator_dta->event))
+					{
+						HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_off);
+						p_task_actuator_dta->state = ST_LED_XX_OFF;
+					}
+					else if((true == p_task_actuator_dta->flag) && (EV_LED_XX_ON == p_task_actuator_dta->event))
+					{
+						HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_on);
+						p_task_actuator_dta->state = ST_LED_XX_ON;
+					}
 
-				break;
+					else
+					{
+						p_task_actuator_dta->tick = DEL_LED_XX_MAX;
+						HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_on);
+						p_task_actuator_dta->state = ST_LED_XX_BLINK_ON;
+					}
 
-			case ST_LED_XX_BLINK_OFF:
+					p_task_actuator_dta->flag = false;
+            	}
+                break;
 
-				break;
+            case ST_LED_XX_PULSE:
+                if (p_task_actuator_dta->tick == DEL_LED_XX_MIN)
+                {
+                	p_task_actuator_dta->flag = false;
+                    HAL_GPIO_WritePin(p_task_actuator_cfg->gpio_port, p_task_actuator_cfg->pin, p_task_actuator_cfg->led_off);
+                    p_task_actuator_dta->state = ST_LED_XX_OFF;
+                }
+                else
+                {
+                    p_task_actuator_dta->tick--;
+                }
+                break;
 
-			case ST_LED_XX_PULSE:
-
-				break;
-
-			default:
-
-				p_task_actuator_dta->tick  = DEL_LED_XX_MIN;
-				p_task_actuator_dta->state = ST_LED_XX_OFF;
-				p_task_actuator_dta->event = EV_LED_XX_OFF;
-				p_task_actuator_dta->flag = false;
-
-				break;
-		}
-	}
+            default:
+                p_task_actuator_dta->tick  = DEL_LED_XX_MIN;
+                p_task_actuator_dta->state = ST_LED_XX_OFF;
+                p_task_actuator_dta->event = EV_LED_XX_OFF;
+                p_task_actuator_dta->flag = false;
+                break;
+        }
+    }
 }
+
 
 /********************** end of file ******************************************/

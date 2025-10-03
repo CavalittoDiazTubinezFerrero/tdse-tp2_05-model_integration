@@ -1,7 +1,22 @@
-  task_actuator.c (task_actuator.h, task_actuator_attribute.h) 
-   Non-Blocking & Update By Time Code -> Actuator Modeling
+ANÁLISIS DE LA VARIABLE g_app_runtime_us
+- Variable global definida en `app_update()`.
+- Mide el tiempo total de ejecución de la aplicación en microsegundos.
+- Inicialmente g_app_runtime_us = 0.
+- Se incrementa en cada ciclo de actualización (tick del sistema), reflejando el tiempo de operación acumulado.
+- Es **monótonamente creciente** durante el funcionamiento normal y se reinicia solo al reiniciar el sistema.
+- Permite monitorear la evolución temporal y la estabilidad de la aplicación.
 
-  task_actuator_interface.c (task_actuator_interface.h)
-   Non-Blocking Code
+Comportamiento:
+  g_app_runtime_us(t) = g_app_runtime_us(t-1) + Δt_tick
 
-...
+
+ANÁLISIS DEL Campo WCET (Worst-Case Execution Time):
+WCET está en el array de estructuras (dta) de las tareas.
+- Indica el mayor tiempo de ejecución observado de la tarea Actuator desde el inicio de la aplicación.
+- Se mide empíricamente: se toma timestamp al inicio y fin de cada ejecución de la tarea.
+- Si el tiempo actual > WCET, se actualiza WCET.
+- WCET nunca disminuye; refleja el peor caso medido.
+- Es útil para verificar **schedulability** en sistemas de tiempo real, asegurando que la tarea cumple los límites de tiempo.
+
+La variable `g_app_runtime_us` provee el tiempo global acumulado de ejecución de la aplicación.  
+El campo `WCET` registra el tiempo de ejecución más alto de la tarea, útil para el análisis de rendimiento en tiempo real.
